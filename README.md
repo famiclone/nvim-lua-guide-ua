@@ -2,7 +2,7 @@
 
 ## Інші переклади
 
-- [:en: English version](https://github.com/nanotee/nvim-lua-guide)
+- [:uk: English version](https://github.com/nanotee/nvim-lua-guide)
 - [:cn: Chinese version](https://github.com/glepnir/nvim-lua-guide-zh)
 - [:es: Spanish version](https://github.com/RicardoRien/nvim-lua-guide/blob/master/README.esp.md)
 - [:brazil: Portuguese version](https://github.com/npxbr/nvim-lua-guide/blob/master/README.pt-br.md)
@@ -11,8 +11,8 @@
 
 ## Зміст
 
-* [Початок](#початок)
-  * [Вивчення Lua](#вивчення-lua)
+- [Початок](#початок)
+  - [Вивчення Lua](#вивчення-lua)
 
 ## Початок
 
