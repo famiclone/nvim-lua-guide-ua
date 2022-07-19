@@ -21,6 +21,9 @@
     - [Поради](#поради)
   - [Файли рантайму](#файли-рантайму)
     - [Поради](#поради)
+- [Використання Lua у Vimscript](#використання-lua-у-vimscript)
+  - [:lua](#:lua)
+  - [:luado](#:luado)
 
 ## Початок
 
@@ -163,6 +166,67 @@ end
 - [`:help load-plugins`](https://neovim.io/doc/user/starting.html#load-plugins)
 
 #### Поради
+
 Поки файли рантайму не базуються на системі модулів Lua, два плагіни можуть мати файл `plugin/main.lua` без проблем.
 
+## Використання Lua у Vimscript
 
+### :lua
+
+Ця команда виконує шматок Lua коду.
+
+```lua
+:lua require('myluamodule')
+```
+
+За допомогою heredoc синтаксису можливо виконувати багаторядкові скріпти:
+
+```vim
+echo "Here's a bigger chunk of Lua code"
+
+lua << EOF
+local mod = require('mymodule')
+local tbl = {1, 2, 3}
+
+for k, v in ipairs(tbl) do
+    mod.method(v)
+end
+
+print(tbl)
+EOF
+```
+
+> Кожна `lua` команда має свою область бачення та змінні оголошені з ключовим словом `local` не будуть доступні за межами команди. Приклад:
+
+```vim
+:lua local foo = 1
+:lua print(foo)
+" виведе 'nil' замість '1'
+```
+
+> Lua функція `print()` поводиться схоже до `:echomsg` команди. Вихідні дані будуть збережені у історіі повідомлень.
+
+Дивіться також:
+
+- [`:help :lua`](https://neovim.io/doc/user/lua.html#Lua)
+- [`:help :lua-heredoc`](https://neovim.io/doc/user/lua.html#:lua-heredoc)
+
+### :luado
+
+Ця команда виконує шматок Lua коду який діє на діапазон рядків у поточному буфері. Якщо рядки не зазначені, то для цілого буферу. Будь-який рядок який повернувся з блоку, використовується для визначення того, чим слід замінити кожен рядок.
+
+Наступна команда замінила би кожен рядок у поточному буфері текстом `hello world`:
+
+```vim
+:luado return 'hello world'
+```
+
+Дві неявні змінні `line` та `linenr` також доступні. `line` – це текст рядка, а `linenr` – номер. Наступна команда зробить кожен рядок у верхньому регістрі, якщо номер рядка ділиться на 2 без залишку:
+
+```vim
+:luado if linenr % 2 == 0 then return line:upper() end
+```
+
+Дивіться також:
+
+- [`:help :luado`](https://neovim.io/doc/user/lua.html#:luado)
