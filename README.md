@@ -24,6 +24,13 @@
 - [Використання Lua у Vimscript](#використання-lua-у-vimscript)
   - [:lua](#lua)
   - [:luado](#luado)
+  - [Підключення Lua файлів](#підключення-lua-файлів)
+    - [Різниця між підключенням та викликом require()](#різниця-між-підключенням-та-викликом-require)
+  - [luaeval()](#luaeval)
+  - [v:lua](#vlua)
+    - [Застереження](#застереження)
+  - [Поради](#поради)
+- [Простір імен vim](#простір-імен-vim)
 
 ## Початок
 
@@ -230,3 +237,185 @@ EOF
 Дивіться також:
 
 - [`:help :luado`](https://neovim.io/doc/user/lua.html#:luado)
+
+### Підключення Lua файлів
+
+Neovim надає 3 Ex команди щоб підключити Lua файли:
+
+- `:luafile`
+- `:source`
+- `:runtime`
+
+`:luafile` та `:source` дуже схожі:
+
+```vim
+:luafile ~/foo/bar/baz/myluafile.lua
+:luafile %
+:source ~/foo/bar/baz/myluafile.lua
+:source %
+```
+
+`:source` також підтримує діапазони, котрі будуть корисні для виконання частини скрипту:
+
+```vim
+:1,10source
+```
+
+Команда `runtime` дещо відрізняється: вона використовує `'runtimepath'` опцію для визначення директорії звідки будуть підключені файли. Більшe деталей: [`:help :runtime`](https://neovim.io/doc/user/repeat.html#:runtime).
+
+Дивіться також:
+
+- [`:help :luafile`](https://neovim.io/doc/user/lua.html#:luafile)
+- [`:help :source`](https://neovim.io/doc/user/repeat.html#:source)
+- [`:help :runtime`](https://neovim.io/doc/user/repeat.html#:runtime)
+
+#### Різниця між підключенням та викликом require():
+
+Можливо вам цікаво у чому різниця та чи варто віддавати перевагу одному способу над іншим. Вони мають різні випадки використання:
+
+- `require()`:
+  - вбудована функція Lua. Дозволяє користуватися перевагами модульної системи Lua
+  - шукає модулі у директорії `lua/` у вашому `'runtimepath'`
+  - дозволяє слідкувати за тим які модулі були завантажені та запобігає повторному парсингу та виконанню скрипта. Якщо ви зміните код у вже завантаженому модулі та спробуєте завантажити його через `require()` ще раз, то зміни не застосуються.
+- `:luafile`, `:source`, `:runtime`:
+  - Ex команди. Не підтримують модулі
+  - повторно виконують раніше виконані скрипти
+  - `:luafile` та `:source` приймають шлях до файлу як абсолютний так і відносний до робочої директорії поточного вікна
+  - `:runtime` використовує `'runtimepath'` опцію щоб знайти файли
+
+### luaeval()
+
+Ця вбудована Vimscript функція виконує Lua вираження та повертає результат. Типи данних Lua автоматично конвертуються у Vimscript типи (і навпаки).
+
+```vim
+" You can store the result in a variable
+let variable = luaeval('1 + 1')
+echo variable
+" 2
+let concat = luaeval('"Lua".." is ".."awesome"')
+echo concat
+" 'Lua is awesome'
+
+" List-like tables are converted to Vim lists
+let list = luaeval('{1, 2, 3, 4}')
+echo list[0]
+" 1
+echo list[1]
+" 2
+" Note that unlike Lua tables, Vim lists are 0-indexed
+
+" Dict-like tables are converted to Vim dictionaries
+let dict = luaeval('{foo = "bar", baz = "qux"}')
+echo dict.foo
+" 'bar'
+
+" Same thing for booleans and nil
+echo luaeval('true')
+" v:true
+echo luaeval('nil')
+" v:null
+
+" You can create Vimscript aliases for Lua functions
+let LuaMathPow = luaeval('math.pow')
+echo LuaMathPow(2, 2)
+" 4
+let LuaModuleFunction = luaeval('require("mymodule").myfunction')
+call LuaModuleFunction()
+
+" It is also possible to pass Lua functions as values to Vim functions
+lua X = function(k, v) return string.format("%s:%s", k, v) end
+```
+
+`luaeval()` приймає опціональний другий аргумент який дозволяє передавати дані до вираження. Потім у вас буде доступ до данних через магічну глобальну змінну `_A`:
+
+```vim
+echo luaeval('_A[1] + _A[2]', [1, 1])
+" 2
+
+echo luaeval('string.format("Lua is %s", _A)', 'awesome')
+" 'Lua is awesome'
+```
+
+Дивіться також:
+
+- [`:help luaeval()`](<https://neovim.io/doc/user/lua.html#luaeval()>)
+
+### v:lua
+
+Це глобальна Vim змінна дозволяє вам викликати Lua функції у глобальному просторі імен ([`_G`](https://www.lua.org/manual/5.1/manual.html#pdf-_G)) напряму з Vimscript. І знову типи данних Vim будуть сконвертовані у Lua типи і навпаки.
+
+```vim
+call v:lua.print('Hello from Lua!')
+" 'Hello from Lua!'
+
+let scream = v:lua.string.rep('A', 10)
+echo scream
+" 'AAAAAAAAAA'
+
+" How about a nice statusline?
+lua << EOF
+
+" How about a nice statusline?
+lua << EOF
+function _G.statusline()
+    local filepath = '%f'
+    local align_section = '%='
+    local percentage_through_file = '%p%%'
+    return string.format(
+        '%s%s%s',
+        filepath,
+        align_section,
+        percentage_through_file
+    )
+end
+EOF
+
+set statusline=%!v:lua.statusline()
+
+" Also works in expression mappings
+lua << EOF
+function _G.check_back_space()
+    local col = vim.api.nvim_win_get_cursor(0)[2]
+    return (col == 0 or vim.api.nvim_get_current_line():sub(col, col):match('%s')) and true
+end
+EOF
+
+inoremap <silent> <expr> <Tab>
+    \ pumvisible() ? "\<C-N>" :
+    \ v:lua.check_back_space() ? "\<Tab>" :
+    \ completion#trigger_completion()
+
+" Call a function from a Lua module by using single quotes and omitting parentheses:
+call v:lua.require'module'.foo()
+```
+
+Дивіться також:
+
+- [`:help v:lua`](https://neovim.io/doc/user/eval.html#v:lua)
+- [`:help v:lua-call`](https://neovim.io/doc/user/lua.html#v:lua-call)
+
+#### Застереження
+
+Ця змінна може бути використана тільки для виклику функцій. Наступний код завжди буде викидувати помилку:
+
+```vim
+" Aliasing functions doesn't work
+let LuaPrint = v:lua.print
+
+" Accessing dictionaries doesn't work
+echo v:lua.some_global_dict['key']
+
+" Using a function as a value doesn't work
+echo map([1, 2, 3], v:lua.global_callback)
+```
+
+### Поради
+
+Ви можете увімкнути підсвічення синтаксису Lua всередині `.vim` файлів. Додайте `let g:vimsyn_embed = 'l'` до вашого файлу конфігурації. Більше інформаціЇ [`:help g:vimsyn_embed`](https://neovim.io/doc/user/syntax.html#g:vimsyn_embed).
+
+## Простір імен vim
+
+Neovim має глобальну змінну `vim` яка є вхідною точкою до API з Lua коду. Це надає користувачам розширену стандартну бібліотеку функцій, а також різноманітні підмодулі.
+
+Деякі важливі функції та модулі:
+
